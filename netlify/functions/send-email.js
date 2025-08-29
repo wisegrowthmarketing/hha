@@ -58,7 +58,8 @@ export const handler = async (event, context) => {
     // Send the email via Resend
     const result = await resend.emails.send({
       from: 'Household Harmony <noreply@mg.householdharmonyagency.com>',
-      to: ['taylor@wisegrowthmarketing.com', 'info@householdharmonyagency.com'],
+      to: ['hosting@wgmtx.com', 'info@householdharmonyagency.com'],
+      replyTo: formData.email,
       subject: `New Nanny Request - ${formData.fullName}`,
       html: emailHtml
     });
