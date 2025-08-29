@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
-import { Resend } from 'resend';
 import { FormData } from '../types/form';
-
-const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY || '');
 
 interface MultiStepFormProps {
   isOpen: boolean;
@@ -12,6 +9,7 @@ interface MultiStepFormProps {
 
 export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     careType: '',
     hourlyRate: '',
@@ -21,10 +19,11 @@ export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
     fullName: '',
     email: '',
     phone: '',
+    zipCode: '',
     textOptIn: false
   });
 
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
@@ -40,14 +39,34 @@ export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!formData.fullName || !formData.email || !formData.phone) {
+    if (!formData.fullName || !formData.email || !formData.phone || !formData.zipCode) {
+      alert('Please fill in all required fields including zip code.');
       return;
     }
 
+    // Validate email format
+    if (!validateEmail(formData.email)) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+
+    // Validate phone number
+    if (!validatePhone(formData.phone)) {
+      alert('Please enter a valid phone number (at least 10 digits).');
+      return;
+    }
+
+    console.log('=== FORM SUBMISSION START ===');
     console.log('Form Data for CRM:', formData);
+    console.log('Current step:', currentStep);
+    console.log('Total steps:', totalSteps);
     
     // Send email using Resend
     try {
+      console.log('Attempting to send email...');
+      console.log('API Key available:', !!import.meta.env.VITE_RESEND_API_KEY);
+      console.log('API Key length:', import.meta.env.VITE_RESEND_API_KEY?.length || 0);
+      
       const emailHtml = `
         <h2>New Nanny Request Form Submission</h2>
         
@@ -64,41 +83,121 @@ export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
           <li><strong>Name:</strong> ${formData.fullName}</li>
           <li><strong>Email:</strong> ${formData.email}</li>
           <li><strong>Phone:</strong> ${formData.phone}</li>
+          <li><strong>Zip Code:</strong> ${formData.zipCode}</li>
           <li><strong>Text Opt-in:</strong> ${formData.textOptIn ? 'Yes' : 'No'}</li>
         </ul>
       `;
 
-      await resend.emails.send({
-        from: 'Household Harmony <onboarding@resend.dev>',
-        to: 'taylor+hha@wisegrowthmarketing.com',
+      const emailData = {
+        from: 'Household Harmony <noreply@mg.householdharmonyagency.com>',
+        to: 'taylor@wisegrowthmarketing.com',
         subject: `New Nanny Request - ${formData.fullName}`,
         html: emailHtml
+      };
+      
+      console.log('Email data:', emailData);
+      console.log('About to call Resend API directly...');
+      
+      // Use fetch directly to avoid CORS issues
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailData)
       });
       
-      console.log('Form submitted successfully!');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Resend API error: ${response.status} - ${errorData.message || 'Unknown error'}`);
+      }
+      
+      const result = await response.json();
+      console.log('Email sent successfully!', result);
+      console.log('=== FORM SUBMISSION SUCCESS ===');
+      
+      setIsSubmitted(true);
     } catch (error) {
+      console.error('=== FORM SUBMISSION ERROR ===');
       console.error('Error submitting form:', error);
-      console.error('There was an error submitting your form. Please try again or contact us directly.');
+      console.error('Error type:', typeof error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      console.error('Full error details:', JSON.stringify(error, null, 2));
+      alert('There was an error submitting your form. Please try again or contact us directly.');
     }
-    
-    onClose();
   };
 
-  const updateFormData = (field: keyof FormData, value: any) => {
+  const updateFormData = (field: keyof FormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const toggleArrayField = (field: keyof FormData, value: string) => {
-    setFormData(prev => {
-      const currentArray = prev[field] as string[];
-      const newArray = currentArray.includes(value)
-        ? currentArray.filter(item => item !== value)
-        : [...currentArray, value];
-      return { ...prev, [field]: newArray };
-    });
+  // Validation functions
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    // Remove all non-digit characters and check length
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.length >= 10 && cleanPhone.length <= 15;
   };
 
   if (!isOpen) return null;
+
+  // Show success message after submission
+  if (isSubmitted) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose}></div>
+
+          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+            <div className="bg-white px-6 py-12 text-center">
+              <div className="bg-sage-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                <Check className="h-8 w-8 text-sage-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Thank You!</h3>
+              <p className="text-gray-600 mb-6">Your nanny request has been submitted successfully. We'll be in touch with you soon to discuss your needs and match you with the perfect nanny.</p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => {
+                    setIsSubmitted(false);
+                    setCurrentStep(1);
+                    setFormData({
+                      careType: '',
+                      hourlyRate: '',
+                      schedule: '',
+                      budgetRange: '',
+                      urgency: '',
+                      fullName: '',
+                      email: '',
+                      phone: '',
+                      zipCode: '',
+                      textOptIn: false
+                    });
+                  }}
+                  className="bg-coral-500 text-white px-8 py-3 rounded-lg hover:bg-coral-600 transition-colors font-medium"
+                >
+                  Submit Another Request
+                </button>
+                <button
+                  onClick={onClose}
+                  className="bg-sage-600 text-white px-8 py-3 rounded-lg hover:bg-sage-700 transition-colors font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const renderStep = () => {
     switch (currentStep) {
@@ -212,6 +311,30 @@ export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Where are you located?</h3>
+              <p className="text-gray-600">Please provide your zip code so we can match you with nannies in your area.</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Zip Code *</label>
+                <input
+                  type="text"
+                  value={formData.zipCode}
+                  onChange={(e) => updateFormData('zipCode', e.target.value)}
+                  className="w-full px-4 py-3 border border-warm-gray-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+                  placeholder="Enter your zip code"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
               <div className="bg-sage-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <Check className="h-8 w-8 text-sage-600" />
               </div>
@@ -238,10 +361,17 @@ export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
                   type="email"
                   value={formData.email}
                   onChange={(e) => updateFormData('email', e.target.value)}
-                  className="w-full px-4 py-3 border border-warm-gray-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent ${
+                    formData.email && !validateEmail(formData.email) 
+                      ? 'border-red-500' 
+                      : 'border-warm-gray-300'
+                  }`}
                   placeholder="Enter your email"
                   required
                 />
+                {formData.email && !validateEmail(formData.email) && (
+                  <p className="text-red-500 text-sm mt-1">Please enter a valid email address</p>
+                )}
               </div>
               
               <div>
@@ -250,10 +380,17 @@ export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => updateFormData('phone', e.target.value)}
-                  className="w-full px-4 py-3 border border-warm-gray-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent ${
+                    formData.phone && !validatePhone(formData.phone) 
+                      ? 'border-red-500' 
+                      : 'border-warm-gray-300'
+                  }`}
                   placeholder="Enter your phone number"
                   required
                 />
+                {formData.phone && !validatePhone(formData.phone) && (
+                  <p className="text-red-500 text-sm mt-1">Please enter a valid phone number (at least 10 digits)</p>
+                )}
               </div>
               
               <div className="flex items-start space-x-3 pt-4">

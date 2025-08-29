@@ -7,6 +7,7 @@ export interface FormData {
   fullName: string;
   email: string;
   phone: string;
+  zipCode: string;
   textOptIn: boolean;
 }
 
