@@ -96,21 +96,20 @@ export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
       };
       
       console.log('Email data:', emailData);
-      console.log('About to call Resend API directly...');
+      console.log('About to call Netlify function...');
       
-      // Use fetch directly to avoid CORS issues
-      const response = await fetch('https://api.resend.com/emails', {
+      // Call our Netlify function instead of Resend directly
+      const response = await fetch('http://localhost:8888/.netlify/functions/send-email', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(emailData)
+        body: JSON.stringify(formData)
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(`Resend API error: ${response.status} - ${errorData.message || 'Unknown error'}`);
+        throw new Error(`Email service error: ${response.status} - ${errorData.error || 'Unknown error'}`);
       }
       
       const result = await response.json();
