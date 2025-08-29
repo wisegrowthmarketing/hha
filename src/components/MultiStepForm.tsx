@@ -5,10 +5,11 @@ import { FormData } from '../types/form';
 interface MultiStepFormProps {
   isOpen: boolean;
   onClose: () => void;
+  initialStep?: number;
 }
 
-export default function MultiStepForm({ isOpen, onClose }: MultiStepFormProps) {
-  const [currentStep, setCurrentStep] = useState(1);
+export default function MultiStepForm({ isOpen, onClose, initialStep = 1 }: MultiStepFormProps) {
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     careType: '',
