@@ -30,18 +30,18 @@ function App() {
 
   const openForm = () => {
     setIsFormOpen(true);
-    // Update URL to include form parameter
+    // Update URL to include form parameter (without adding to history)
     const url = new URL(window.location.href);
     url.searchParams.set('form', 'open');
-    window.history.pushState({}, '', url);
+    window.history.replaceState({}, '', url);
   };
 
   const closeForm = () => {
     setIsFormOpen(false);
-    // Remove form parameter from URL
+    // Remove form parameter from URL (without adding to history)
     const url = new URL(window.location.href);
     url.searchParams.delete('form');
-    window.history.pushState({}, '', url);
+    window.history.replaceState({}, '', url);
   };
 
   return (
