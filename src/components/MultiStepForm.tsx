@@ -3,7 +3,7 @@ import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Resend } from 'resend';
 import { FormData } from '../types/form';
 
-const resend = new Resend('re_9vHuRR5U_HGpBNtA9K3Va7tQ5d9KfWGzB');
+const resend = new Resend(import.meta.env.VITE_RESEND_API_KEY || '');
 
 interface MultiStepFormProps {
   isOpen: boolean;
