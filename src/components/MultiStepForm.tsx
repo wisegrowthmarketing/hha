@@ -2,6 +2,20 @@ import React, { useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { FormData } from '../types/form';
 
+// Extend Window interface for Google Tag Manager
+declare global {
+  interface Window {
+    dataLayer: Array<{
+      event: string;
+      event_category?: string;
+      event_label?: string;
+      value?: number;
+      custom_parameters?: Record<string, string>;
+      [key: string]: unknown;
+    }>;
+  }
+}
+
 interface MultiStepFormProps {
   isOpen: boolean;
   onClose: () => void;
@@ -117,6 +131,23 @@ export default function MultiStepForm({ isOpen, onClose, initialStep = 1 }: Mult
       console.log('Email sent successfully!', result);
       console.log('=== FORM SUBMISSION SUCCESS ===');
       
+      // Track conversion in Google Tag Manager
+      if (typeof window !== 'undefined' && window.dataLayer) {
+        // Google's default form_submit event (works with GA4 automatically)
+        window.dataLayer.push({
+          'event': 'form_submit',
+          'form_name': 'nanny_request_form',
+          'form_id': 'nanny_request',
+          'custom_parameters': {
+            'care_type': formData.careType,
+            'hourly_rate': formData.hourlyRate,
+            'schedule': formData.schedule,
+            'urgency': formData.urgency,
+            'zip_code': formData.zipCode
+          }
+        });
+      }
+      
       setIsSubmitted(true);
     } catch (error) {
       console.error('=== FORM SUBMISSION ERROR ===');
@@ -146,6 +177,26 @@ export default function MultiStepForm({ isOpen, onClose, initialStep = 1 }: Mult
     const cleanPhone = phone.replace(/\D/g, '');
     return cleanPhone.length >= 10 && cleanPhone.length <= 15;
   };
+
+  // Track form view when opened
+  React.useEffect(() => {
+    if (isOpen && typeof window !== 'undefined' && window.dataLayer) {
+      // Google's default form_start event (works with GA4 automatically)
+      window.dataLayer.push({
+        'event': 'form_start',
+        'form_name': 'nanny_request_form',
+        'form_id': 'nanny_request'
+      });
+
+      // Your custom event for specific tracking
+      window.dataLayer.push({
+        'event': 'form_view',
+        'event_category': 'nanny_request',
+        'event_label': 'nanny_request_form_opened',
+        'value': 1
+      });
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
